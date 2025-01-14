@@ -1,0 +1,539 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Improved Rolling Quotes with Matrix Rain (Responsive)</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    body {
+      margin: 0;
+      overflow: hidden;
+      background-color: #000;
+      color: #00ff00;
+      font-family: 'Consolas', 'Menlo', monospace;
+    }
+
+    #initialLoadingScreen {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: #000;
+      color: #00ff00;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      font-size: 2em;
+      z-index: 4; /* Ensure it's on top */
+    }
+
+    #startButton {
+      background: none;
+      border: 2px solid #00ff00;
+      color: #00ff00;
+      cursor: pointer;
+      font-size: 1.5em;
+      padding: 15px 30px;
+      border-radius: 10px;
+      outline: none;
+      transition: background-color 0.3s ease;
+      margin-top: 20px;
+    }
+
+    #startButton:hover {
+      background-color: rgba(0, 255, 0, 0.2);
+    }
+
+    #loadingAnimation {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: #000;
+      color: #00ff00;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      font-size: 2em;
+      z-index: 2; /* Ensure it's on top of matrix, but below initial loader */
+      transition: opacity 0.5s ease-out;
+      opacity: 1; /* Initially visible */
+    }
+
+    #loadingAnimation.hidden {
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    #matrixRainCanvas {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 1;
+      opacity: 1; /* Initially visible */
+      transition: opacity 0.5s ease-in;
+    }
+
+    #matrixRainCanvas.hidden {
+      opacity: 0;
+    }
+
+    .rolling-quotes-container {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      position: fixed;
+      top: 0;
+      left: 0;
+      z-index: 3;
+      pointer-events: none;
+      flex-direction: column;
+      padding: 20px;
+      box-sizing: border-box;
+      text-align: center;
+      transition: opacity 0.5s ease-in-out;
+      opacity: 0; /* Initially hidden */
+    }
+
+    .rolling-quotes-container.visible {
+      opacity: 1;
+    }
+
+    .rolling-quotes-wrapper {
+      display: flex;
+      align-items: center;
+      margin-bottom: 10px;
+      opacity: 1;
+      transition: opacity 0.5s ease-in-out;
+    }
+
+    .rolling-quotes-wrapper.fade-out {
+      opacity: 0;
+    }
+
+    .rolling-quotes {
+      display: flex;
+      justify-content: center;
+      flex-wrap: wrap;
+      margin-right: 10px; /* Space between quote and buttons */
+    }
+
+    .author-container {
+      display: flex;
+      justify-content: center;
+      flex-wrap: wrap;
+      opacity: 1;
+      transition: opacity 0.5s ease-in-out;
+    }
+
+    .author-container.fade-out {
+      opacity: 0;
+    }
+
+    .character-container {
+      position: relative;
+      overflow: hidden;
+      background-color: #000;
+      text-align: center;
+      opacity: 0;
+      transform: scale(0.2);
+      transition: opacity 0.5s ease-in-out, transform 0.5s ease-in-out;
+      margin: 2px;
+      box-sizing: border-box;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .character-container.popped-in {
+      opacity: 1;
+      transform: scale(1);
+    }
+
+    .character {
+      font-weight: bold;
+      line-height: 1;
+      white-space: nowrap;
+    }
+
+    .speak-button {
+      background: none;
+      border: none;
+      color: #00ff00;
+      cursor: pointer;
+      font-size: 1em;
+      padding: 5px 10px;
+      border: 1px solid #00ff00;
+      border-radius: 5px;
+      outline: none;
+      transition: background-color 0.3s ease;
+      margin-left: 5px; /* Space between buttons */
+    }
+
+    .speak-button:hover {
+      background-color: rgba(0, 255, 0, 0.1);
+    }
+
+    /* Responsive Font Sizes and Character Container Sizes */
+    @media (max-width: 768px) {
+      .character-container {
+        width: 20px;
+        height: 30px;
+        font-size: 20px;
+        border: 1px solid #00ff00;
+        border-radius: 2px;
+      }
+      .character {
+        font-size: 20px;
+      }
+      .speak-button {
+        font-size: 0.8em;
+      }
+    }
+
+    @media (min-width: 769px) and (max-width: 1200px) {
+      .character-container {
+        width: 25px;
+        height: 35px;
+        font-size: 25px;
+        border: 1px solid #00ff00;
+        border-radius: 3px;
+      }
+      .character {
+        font-size: 25px;
+      }
+      .speak-button {
+        font-size: 0.9em;
+      }
+    }
+
+    @media (min-width: 1201px) {
+      .character-container {
+        width: 30px;
+        height: 40px;
+        font-size: 30px;
+        border: 1px solid #00ff00;
+        border-radius: 4px;
+      }
+      .character {
+        font-size: 30px;
+      }
+      .speak-button {
+        font-size: 1em;
+      }
+    }
+
+    @media (min-width: 1921px) {
+      .character-container {
+        width: 40px;
+        height: 50px;
+        font-size: 40px;
+        border: 2px solid #00ff00;
+        border-radius: 5px;
+      }
+      .character {
+        font-size: 40px;
+      }
+      .speak-button {
+        font-size: 1.2em;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <div id="initialLoadingScreen">
+    <canvas id="initialMatrixCanvas"></canvas>
+    <button id="startButton">Enter</button>
+  </div>
+
+  <div id="loadingAnimation" class="hidden">Loading Quotes...</div>
+  <canvas id="matrixRainCanvas" class="hidden"></canvas>
+
+  <div class="rolling-quotes-container">
+    <div class="rolling-quotes-wrapper" id="rollingQuotesWrapper">
+      <div class="rolling-quotes" id="rollingQuotes"></div>
+      <button class="speak-button" id="speakButton" title="Read quote aloud">🔊</button>
+    </div>
+    <div class="author-container" id="authorContainer"></div>
+  </div>
+
+  <script>
+    const matrixRainConfig = {
+      charSet: "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789",
+      minFontSize: 10,
+      maxFontSize: 20,
+      baseDropSpeed: 150,
+      speedVariance: 50,
+      baseBrightnessFactor: 0.7,
+      brightnessVariance: 0.2,
+      trailFadeSpeed: 0.05,
+    };
+
+    const initialMatrixConfig = {
+      charSet: "Chrins TEC 💫",
+      fontSize: 30,
+      color: '#0F0',
+      density: 0.05 // Percentage of characters to show initially
+    };
+
+    const rollingQuotesConfig = {
+      rollInterval: 5000,
+      googleQuotes: [
+        { content: "Focus on the user and all else will follow.", author: "Larry Page" },
+        { content: "Innovation is not always about inventing something new, but about finding new ways to apply existing things.", author: "Dennis Crowley" },
+        { content: "We are really interested in the intersection of artificial intelligence and education.", author: "Jeff Dean" },
+        { content: "Have a healthy disregard for the impossible.", author: "Larry Page" },
+        { content: "Always deliver more than expected.", author: "Larry Page" },
+        { content: "If you're changing the world, you're working on important things. You're excited to get up in the morning.", author: "Larry Page" },
+        { content: "It's more exciting to be on the forefront of discovery than it is to stand on the shoulders of giants.", author: "Sergey Brin" },
+        { content: "Solve one problem at a time.", author: "Sundar Pichai" },
+        { content: "Good ideas come from everywhere.", author: "Sundar Pichai" },
+        { content: "We try to focus on the things that are strategic and permanent.", author: "Susan Wojcicki" },
+      ]
+    };
+
+    const initialLoadingScreen = document.getElementById('initialLoadingScreen');
+    const initialMatrixCanvas = document.getElementById('initialMatrixCanvas');
+    const initialCtx = initialMatrixCanvas.getContext('2d');
+    const loadingAnimation = document.getElementById('loadingAnimation');
+    const canvas = document.getElementById('matrixRainCanvas');
+    const ctx = canvas.getContext('2d');
+    const rollingQuotesContainer = document.querySelector('.rolling-quotes-container');
+    const startButton = document.getElementById('startButton');
+
+    let matrixRainStarted = false;
+    let rollingQuotesStarted = false;
+    let loadingTextDisplayed = true; // Flag to indicate if loading text is being displayed
+
+    function initializeInitialMatrix() {
+      initialMatrixCanvas.width = window.innerWidth;
+      initialMatrixCanvas.height = window.innerHeight;
+      initialCtx.font = `${initialMatrixConfig.fontSize}px Consolas, Menlo, monospace`;
+      initialCtx.fillStyle = initialMatrixConfig.color;
+
+      const chars = initialMatrixConfig.charSet.split('');
+      const positions = [];
+
+      for (let i = 0; i < chars.length; i++) {
+        const x = (initialMatrixCanvas.width / (chars.length + 1)) * (i + 1);
+        const y = initialMatrixCanvas.height / 2 + (Math.random() - 0.5) * 50; // Slight vertical variation
+        positions.push({ char: chars[i], x: x, y: y, opacity: 0 });
+      }
+
+      function drawInitialText(timestamp) {
+        initialCtx.clearRect(0, 0, initialMatrixCanvas.width, initialMatrixCanvas.height);
+        positions.forEach(p => {
+          if (p.opacity < 1) {
+            p.opacity += 0.02; // Fade-in speed
+          }
+          initialCtx.globalAlpha = Math.min(1, p.opacity);
+          initialCtx.fillText(p.char, p.x, p.y);
+          initialCtx.globalAlpha = 1;
+        });
+        if (positions.some(p => p.opacity < 1)) {
+          requestAnimationFrame(drawInitialText);
+        }
+      }
+
+      drawInitialText();
+    }
+
+    function initializeMatrixRain() {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+
+      const columns = Math.floor(canvas.width / matrixRainConfig.minFontSize);
+      const drops = [];
+      for (let x = 0; x < columns; x++) {
+        drops[x] = 1;
+      }
+
+      function getRandomFontSize() {
+        return Math.floor(Math.random() * (matrixRainConfig.maxFontSize - matrixRainConfig.minFontSize + 1)) + matrixRainConfig.minFontSize;
+      }
+
+      function drawMatrixRain() {
+        ctx.fillStyle = `rgba(0, 0, 0, ${matrixRainConfig.trailFadeSpeed})`;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        for (let i = 0; i < drops.length; i++) {
+          const text = matrixRainConfig.charSet.charAt(Math.floor(Math.random() * matrixRainConfig.charSet.length));
+          const fontSize = getRandomFontSize();
+          const x = i * matrixRainConfig.minFontSize;
+          const y = drops[i] * fontSize;
+
+          ctx.font = `${fontSize}px Consolas, Menlo, monospace`;
+
+          const brightnessFactor = matrixRainConfig.baseBrightnessFactor + (Math.random() * matrixRainConfig.brightnessVariance);
+          if (Math.random() > brightnessFactor) {
+            ctx.fillStyle = '#0F0';
+          } else {
+            ctx.fillStyle = '#0F9';
+          }
+
+          ctx.fillText(text, x, y);
+
+          if (drops[i] * fontSize > canvas.height && Math.random() > 0.975) {
+            drops[i] = 0;
+          }
+          drops[i] += 1 + Math.random() * matrixRainConfig.speedVariance / 100;
+        }
+
+        requestAnimationFrame(drawMatrixRain);
+      }
+
+      drawMatrixRain();
+      canvas.classList.remove('hidden');
+      loadingAnimation.classList.add('hidden');
+      matrixRainStarted = true;
+    }
+
+    async function fetchRandomQuote() {
+      return new Promise((resolve) => {
+        const randomIndex = Math.floor(Math.random() * rollingQuotesConfig.googleQuotes.length);
+        resolve(rollingQuotesConfig.googleQuotes[randomIndex]);
+      });
+    }
+
+    let currentQuoteText = ""; // Store the current quote text
+    let speechEnabled = true; // Flag to track speech state
+
+    async function animateRollingText(containerId, text) {
+      const container = document.getElementById(containerId);
+      const wrapper = document.getElementById('rollingQuotesWrapper'); // Get the wrapper for the quote
+
+      return new Promise(resolve => {
+        // Fade out the current content
+        wrapper.classList.add('fade-out');
+        container.classList.add('fade-out');
+
+        setTimeout(() => {
+          container.innerHTML = '';
+          const characters = String(text).split('');
+
+          characters.forEach((char, index) => {
+            const charContainer = document.createElement('div');
+            charContainer.classList.add('character-container');
+            const charElement = document.createElement('span');
+            charElement.classList.add('character');
+            charElement.textContent = char;
+            charContainer.appendChild(charElement);
+            container.appendChild(charContainer);
+
+            setTimeout(() => {
+              charContainer.classList.add('popped-in');
+            }, index * 100);
+          });
+
+          // Fade in the new content
+          wrapper.classList.remove('fade-out');
+          container.classList.remove('fade-out');
+          resolve();
+        }, 500); // Match the transition duration
+      });
+    }
+
+    async function animateAuthor(containerId, text) {
+      const container = document.getElementById(containerId);
+
+      return new Promise(resolve => {
+        container.classList.add('fade-out');
+        setTimeout(() => {
+          container.innerHTML = '';
+          const characters = String(text).split('');
+
+          characters.forEach((char, index) => {
+            const charContainer = document.createElement('div');
+            charContainer.classList.add('character-container');
+            const charElement = document.createElement('span');
+            charElement.classList.add('character');
+            charElement.textContent = char;
+            charContainer.appendChild(charElement);
+            container.appendChild(charContainer);
+
+            setTimeout(() => {
+              charContainer.classList.add('popped-in');
+            }, index * 100);
+          });
+          container.classList.remove('fade-out');
+          resolve();
+        }, 500); // Match the transition duration
+      });
+    }
+
+    async function startRollingQuotes() {
+      const quoteData = await fetchRandomQuote();
+      if (quoteData) {
+        await animateRollingText('rollingQuotes', quoteData.content);
+        await animateAuthor('authorContainer', `- ${quoteData.author}`);
+        currentQuoteText = quoteData.content; // Update the current quote text
+      }
+    }
+
+    function startRollingInterval() {
+      startRollingQuotes();
+      setTimeout(startRollingInterval, rollingQuotesConfig.rollInterval);
+    }
+
+    startButton.addEventListener('click', () => {
+      initialLoadingScreen.style.display = 'none';
+      loadingAnimation.classList.remove('hidden');
+      rollingQuotesContainer.classList.add('visible');
+
+      if (!matrixRainStarted) {
+        initializeMatrixRain();
+      }
+      if (!rollingQuotesStarted) {
+        startRollingInterval();
+        rollingQuotesStarted = true;
+      }
+    });
+
+    window.addEventListener('resize', () => {
+      if (loadingTextDisplayed) {
+        initializeInitialMatrix();
+      } else if (matrixRainStarted) {
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+        const columns = Math.floor(canvas.width / matrixRainConfig.minFontSize);
+        const drops = [];
+        for (let x = 0; x < columns; x++) {
+          drops[x] = 1;
+        }
+      }
+    });
+
+    // Web Speech API implementation
+    const speakButton = document.getElementById('speakButton');
+
+    if ('speechSynthesis' in window) {
+      const synth = window.speechSynthesis;
+      let utterance = new SpeechSynthesisUtterance();
+      utterance.lang = 'en-US'; // You can change the language
+
+      speakButton.addEventListener('click', () => {
+        if (speechEnabled) {
+          if (synth.speaking) {
+            synth.cancel(); // Stop current speech if playing
+          }
+          utterance.text = currentQuoteText;
+          synth.speak(utterance);
+        }
+      });
+    } else {
+      speakButton.style.display = 'none'; // Hide the button if Web Speech API is not supported
+      console.warn('Web Speech API is not supported in this browser.');
+    }
+
+    // Initialize the initial matrix rain on load
+    initializeInitialMatrix();
+  </script>
+
+</body>
+</html>
